@@ -1,5 +1,5 @@
 % given two pts' coordinate, return the Pts that on the line segment that
-% conect these two pts.
+% connect these two pts.
 % Pts1 is a 1-by-2 vector, where Pts1(1) is the row index, 
 % Pts1(2) is the column index
 % PtsonLineSegment is a n-by-2 matrix, where n is the number of pts on the

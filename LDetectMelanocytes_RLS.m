@@ -28,7 +28,7 @@
 % from the authors.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function bwM=LDetectMelanocytes_RLS(im_ConfLHR,maskConfLHR,maskAllCells_ATLRRS,TAreaRatio,TsmalNucleiArea,debug)
+function bwM=LDetectMelanocytes_RLS(im_ConfLHR,maskConfLHR,maskAllCells_ATLRRS,TAreaRatio,TsmalNucleiArea,nuclei2plot,debug)
 
 
 if ~exist('debug','var')
@@ -46,13 +46,13 @@ end
 if sum(maskAllCells_ATLRRS(:))~=0
     %% Initial Radial line scanning for the supporting point
     
-    GC=im_ConfLHR(:,:,2);
+    GC=im_ConfLHR(:,:,2); % why channel 2 ??
     ROI_bw=maskAllCells_ATLRRS;
-    ROI_GC=GC;
+    ROI_GC=GC;% im channel 2
     
     cc=bwconncomp(ROI_bw);
     stats=regionprops(cc,'Centroid','Area');
-    MeanIntenInEpi=LgetMeanColorInEpiArea(im_ConfLHR,maskConfLHR);
+    MeanIntenInEpi=LgetMeanColorInEpiArea(im_ConfLHR,maskConfLHR);% mean color in area except white region
     AllSP=[];
     AllIrre=[];
     flagRegularization=1;
@@ -64,7 +64,7 @@ if sum(maskAllCells_ATLRRS(:))~=0
     end
     
 %     [AllSP_Area,AllSP_MeanIntensity,AllSP_Constrast]=LCalInfo4Melanocytes(ROI_GC,ROI_bw,AllSP,0);
-    [AllSP_Area]=LCalInfo4Melanocytes_AreaofSRonly(ROI_GC,ROI_bw,AllSP,0);
+    [AllSP_Area]=LCalInfo4Melanocytes_AreaofSRonly(ROI_GC,ROI_bw,AllSP,0); % supporting region area
     
     % AllRatio_Irre_SRArea=AllIrre(i)*100/AllSP_Area(i);% original Irre/SRArea ratio is good
     
@@ -148,11 +148,26 @@ if sum(maskAllCells_ATLRRS(:))~=0
     
     cc=bwconncomp(ROI_bw);
     
-    idx = find(AllAreaRatio > TAreaRatio& AllNucleiArea>TsmalNucleiArea);% & AllSP_Contrast>TContrast);
-    bwM = ismember(labelmatrix(cc), idx);
-    
+    idx = find(AllNucleiArea>TsmalNucleiArea);% & AllAreaRatio > TAreaRatio);% & AllSP_Contrast>TContrast);
+    L = labelmatrix(cc);
+    idx2plot = zeros(1,length(idx));
+    for i=1:length(nuclei2plot)
+        idx_temp = unique(L(find(ROI_bw==nuclei2plot(i))));
+        if(find(idx==idx_temp))
+            idx2plot(i) = idx_temp;
+        end
+    end
+    idx2plot(find(idx2plot==0)) = [];
+    bwM = ismember(labelmatrix(cc), idx2plot);
     if debug
-        LshowMaskCountouronIM(bwM,im_ConfLHR,38);
+        LshowMaskCountouronIM(bwM,im_ConfLHR,38);hold on;
+        for i=1:length(idx2plot)
+            [curSubSP_r,curSubSP_c]=ind2sub(size(ROI_bw),AllSP_NoOverlap{idx2plot(i)});
+            curSubSP_r=[curSubSP_r curSubSP_r(1)];
+            curSubSP_c=[curSubSP_c curSubSP_c(1)];
+            plot(curSubSP_c,curSubSP_r,'k');
+        end
+        hold off;
     end
 else
     bwM=maskAllCells_ATLRRS;

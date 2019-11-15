@@ -5,20 +5,21 @@
 function AllSP=LfindOutterSPV3(Centroid,Area,im,bw,bw_allNuclei,GradienMapTpye,MeanIntensity, Regularization,curNucleiInd,shown)
 %% decide the radi_maxal lines
 % sample circular points around the center
-RlineNO=50;
+RlineNO=50; % 50 radial lines to generate
 theta = linspace(0,2*pi,RlineNO);
 theta(end)=[];
 
 C_x=Centroid(1);
 C_y=Centroid(2);
 
-radi_max =ceil(2.6*sqrt(Area/pi));
+% radi_max =ceil(2.6*sqrt(Area/pi));
+radi_max =ceil(3.6*sqrt(Area/pi));
 % radi_max = 20;% should change with the size of the object
 
 %%%  Threshold used to check if this SP to the centroid has a low mean
 %%% value, if so disable this SP
-TMI4RL=MeanIntensity*1.3;% threshold of the mean intensity for radial line
-
+%TMI4RL=MeanIntensity*1.3;% threshold of the mean intensity for radial line
+TMI4RL=MeanIntensity;
 TcheckIfSPonOtherNuclei=3;% threshold to check if the SP is on the other nuclei region.
 AllNucleiPixelIndx=find(bw_allNuclei==1);% for latter checking
 
@@ -82,8 +83,8 @@ if strcmp(GradienMapTpye,'Threshold')
 end
 
 % radi_min=10;% should be change with the obj boundary
-%%
-xi =C_x + radi_max * cos( theta );
+%% draw radial lines 
+xi =C_x + radi_max * cos( theta ); % theta方向最外面的点
 yi =C_y + radi_max * sin( theta );
 % plot circle points
 if shown
@@ -96,20 +97,20 @@ if shown
     hold off;
 end
 %% convert the continous line to discrete points
-curSPt=[C_y,C_x];
+curSPt=[C_y,C_x]; % 中心点
 for i=1:length(theta)
     curEPt=[yi(i),xi(i)];
     
-    curPts=LgetLineSegmentbyTwoPts_light(curSPt,curEPt,size(bw));
+    curPts=LgetLineSegmentbyTwoPts_light(curSPt,curEPt,size(bw));% radial line上的点 resolution给定
     
     showbw=im;showbw(:)=0;
     curPtsInd=sub2ind(size(showbw),curPts(:,1),curPts(:,2));
-    curPtsInd=unique(curPtsInd);
+    curPtsInd=unique(curPtsInd); % radial line上的点 ind
     PtsonLineSegment_full{i}=curPtsInd;
     
     showbw(curPtsInd)=1;
     %%% the pts outside the obj region is useful
-    showbw=showbw&~bw;
+    showbw=showbw&~bw; % 去掉别的nuclei上的点
     %%%% check if the line is being break into two, if so, keep the near
     %%%% centroid one
     cc=bwconncomp(showbw,8);
@@ -134,7 +135,7 @@ for i=1:length(theta)
     % cal the distance to the centroid
     distance=sqrt((C_y-SubInd_y).^2+(C_x-SubInd_x).^2);
     [sval,sortind]=sort(distance,'ascend');
-    curValidPtsInd_s=curValidPtsInd(sortind);
+    curValidPtsInd_s=curValidPtsInd(sortind);% 按照距离nuclei从近到远给radialline上的点排序
     
     PtsonLineSegment{i}=curValidPtsInd_s;
     
@@ -150,7 +151,7 @@ for i=1:length(theta)
     curPtsonLine=PtsonLineSegment{i};
     if length(curPtsonLine)>1
         % turn to the 4 quarter range angle
-        alpha360_m=LcalAccAngle4Direction(curPtsonLine,GC_x,GC_y);
+        alpha360_m=LcalAccAngle4Direction(curPtsonLine,GC_x,GC_y); % gradient角度 gd
         
         magnitude_m=sqrt(GC_x(curPtsonLine).^2+ GC_y(curPtsonLine).^2);
         if max(magnitude_m)~=0
@@ -160,7 +161,7 @@ for i=1:length(theta)
             ZeroMagInd=1:length(magnitude_m);
         end
         
-        if i==1
+        if i==1 % radialline为x轴正半轴
             angleDiff=alpha360_m-(theta(i));
             angleDiff(ZeroMagInd)=NaN;   % there is no angle different for the zero magnitude pts
         else
@@ -177,7 +178,8 @@ for i=1:length(theta)
         end
         
         %%% cal the parameter cos(angleDiff)+magnitude for all the pts have opposit gradient direction
-        %%% get the opposit gradient direction
+        %%% get the opposit gradient direction, the ideal case is the
+        %%% gradient direction and radial an
         if i==1
             OGInd=find(angleDiff>pi/2&angleDiff<pi*3/2);
         else
@@ -203,7 +205,7 @@ for i=1:length(theta)
             %%  further check if this SP to the centroid has a low mean
             %%% value, if so disable this SP
             curI4RL=im(curPtsonLine(1:OGInd(maxInd)-1));% get the intensity for the pontential supporting line
-            curMI4RL=mean(curI4RL);
+            curMI4RL=mean(curI4RL); % supporting line should be halo region (white)
             if curMI4RL<TMI4RL
                 maxInd=1;
                 curSP=curPtsonLine(1);
@@ -275,7 +277,7 @@ if Regularization==1
     distance2C_Tri=[distance2C,distance2C,distance2C];
     % distance2C_s=smooth(distance2C,'moving');
     distance2C_s_Tri=smooth(distance2C_Tri,'rlowess');
-    distance2C_s=distance2C_s_Tri(length(distance2C)+1:2*length(distance2C));
+    distance2C_s=distance2C_s_Tri(length(distance2C)+1:2*length(distance2C)); % 平滑后的sp距离
     
     % shown=1;
     if shown
@@ -304,7 +306,7 @@ if Regularization==1
     AllSP=AllSP_s;
     
     if shown
-        figure(11);imshow(im,'InitialMagnification','fit');hold on;
+        figure(13);imshow(im,'InitialMagnification','fit');hold on;
         for i=1:length(AllSP)
             [curSubSP_r,curSubSP_c]=ind2sub(size(bw),AllSP_s);
             curSubSP_r=[curSubSP_r curSubSP_r(1)];
